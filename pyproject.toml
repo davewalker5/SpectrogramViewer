@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectrogram"
+version = "1.0.0"
+description = "Spectrogram and waveform viewer for audio recordings"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib",
+    "librosa",
+    "numpy"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
