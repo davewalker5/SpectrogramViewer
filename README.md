@@ -108,10 +108,8 @@ To reduce background noise automatically, the pipeline includes a simple noise-r
 
 The recording is divided into short, overlapping windows (typically 50 ms). For each window, two measurements are taken:
 
-- Loudness (RMS amplitude)
-  Quieter windows are more likely to contain background noise only.
-- Band energy ratio
-  The fraction of spectral energy within the expected signal band (for bat recordings, typically ~3.5–6.5 kHz after time expansion).
+- Loudness (RMS amplitude) &rarr; Quieter windows are more likely to contain background noise only.
+- Band energy ratio &rarr; The fraction of spectral energy within the expected signal band (for bat recordings, typically ~3.5–6.5 kHz after time expansion).
 
 And the ratio of the two is then calculated:
 
