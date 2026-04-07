@@ -11,7 +11,7 @@ export PROJECT_ROOT=$( cd "$( dirname "$0" )/.." && pwd )
 cd "$PROJECT_ROOT"
 
 # Run the analyser
-python -m spectrogram --input "$1" --output "$2" --process
+python -m spectrogram --config "$PROJECT_ROOT/config.json" --input "$1" --output "$2" --process
 
 # Restore the current folder
 cd "$CWD"

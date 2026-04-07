@@ -3,12 +3,17 @@ import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+from spectrogram.config_reader import get_spectrogram_property
 
 
-def show_spectrogram(file_path: str, title: str, n_fft: int, hop_length: int) -> None:
+def show_spectrogram(file_path: str, title: str) -> None:
     """
     Chart the waveform and spectrogram derived from that waveform
     """
+
+    # Load configuration properties
+    n_fft = get_spectrogram_property("n_fft")
+    hop_length = get_spectrogram_property("hop_length")
 
     # Set a default title if one isn't set
     if not title:

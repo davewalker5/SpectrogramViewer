@@ -3,6 +3,7 @@ import librosa
 import matplotlib.pyplot as plt
 from typing import List, Tuple
 from pathlib import Path
+from spectrogram.config_reader import get_noise_detection_property
 
 
 def _window_rms(window: np.ndarray) -> float:
@@ -84,17 +85,7 @@ def _window_band_ratio(
     return float(band_energy / total_energy)
 
 
-def find_noise_regions(
-    y: np.ndarray,
-    sr: int,
-    window_ms: float = 50.0,
-    hop_ms: float = 25.0,
-    rms_percentile: float = 35.0,
-    band_ratio_percentile: float = 40.0,
-    min_region_ms: float = 150.0,
-    band_low_hz: float = 3500.0,
-    band_high_hz: float = 6500.0,
-) -> List[Tuple[int, int]]:
+def find_noise_regions(y: np.ndarray, sr: int) -> List[Tuple[int, int]]:
     """
     Find likely noise-only regions using both loudness and spectral content.
 
@@ -120,16 +111,7 @@ def find_noise_regions(
 
     Args:
         y: Input waveform.
-        sr: Sample rate in Hz.
-        window_ms: Analysis window size in milliseconds.
-        hop_ms: Step between consecutive windows in milliseconds.
-        rms_percentile: Windows at or below this RMS percentile are treated
-            as "relatively quiet".
-        band_ratio_percentile: Windows at or below this band-energy percentile
-            are treated as "relatively low in bat-band energy".
-        min_region_ms: Minimum duration for a merged region to be kept.
-        band_low_hz: Lower bound of expected signal band in Hz.
-        band_high_hz: Upper bound of expected signal band in Hz.
+        sr: Sample rate in Hz
 
     Returns:
         A list of (start_sample, end_sample) tuples identifying regions that
@@ -142,6 +124,16 @@ def find_noise_regions(
         - On very dense or very noisy recordings, it may return the "least
           signal-like" regions rather than truly signal-free ones.
     """
+
+    # Load configuration properties
+    window_ms = get_noise_detection_property("window_ms")
+    hop_ms = get_noise_detection_property("hop_ms")
+    rms_percentile = get_noise_detection_property("rms_percentile")
+    band_ratio_percentile = get_noise_detection_property("band_ratio_percentile")
+    min_region_ms = get_noise_detection_property("min_region_ms")
+    band_low_hz = get_noise_detection_property("band_low_hz")
+    band_high_hz = get_noise_detection_property("band_high_hz")
+
     # Convert window, hop, and minimum region length from milliseconds to samples.
     window_length = max(1, int(sr * window_ms / 1000.0))
     hop_length = max(1, int(sr * hop_ms / 1000.0))
@@ -238,33 +230,13 @@ def plot_waveform_with_noise_regions(
     plt.show()
 
 
-def inspect_noise_detection(
-    file_path: str,
-    title: str,
-    window_ms: float = 50.0,
-    hop_ms: float = 25.0,
-    rms_percentile: float = 35.0,
-    band_ratio_percentile: float = 40.0,
-    min_region_ms: float = 150.0,
-    band_low_hz: float = 3500.0,
-    band_high_hz: float = 6500.0,
-) -> List[Tuple[int, int]]:
+def inspect_noise_detection(file_path: str, title: str) -> List[Tuple[int, int]]:
     """
     Load an audio file, detect likely noise-only regions, plot them, and return them.
     """
     y, sr = librosa.load(file_path, sr=None, mono=True)
 
-    noise_regions = find_noise_regions(
-        y=y,
-        sr=sr,
-        window_ms=window_ms,
-        hop_ms=hop_ms,
-        rms_percentile=rms_percentile,
-        band_ratio_percentile=band_ratio_percentile,
-        min_region_ms=min_region_ms,
-        band_low_hz=band_low_hz,
-        band_high_hz=band_high_hz,
-    )
+    noise_regions = find_noise_regions(y=y, sr=sr)
 
     # Set a default title if one isn't set
     if not title:

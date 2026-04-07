@@ -1,0 +1,28 @@
+{
+    "spectrogram": {
+        "n_fft": 2048,
+        "hop_length": 256
+    },
+    "noise_detection": {
+        "window_ms": 50.0,
+        "hop_ms": 25.0,
+        "rms_percentile": 35.0,
+        "band_ratio_percentile": 40.0,
+        "min_region_ms": 150.0,
+        "band_low_hz": 3500.0,
+        "band_high_hz": 6500.0
+    },
+    "spectral_noise_reduction": {
+        "n_fft": 2048,
+        "hop_length": 256,
+        "reduction_strength": 1.25,
+        "floor_fraction": 0.10
+    },
+    "high_pass_filter": {
+        "cutoff_hz": 2500.0,
+        "order": 4
+    },
+    "normalisation": {
+        "peak_target": 0.95
+    }
+}

@@ -13,15 +13,14 @@ import soundfile as sf
 import scipy.signal as signal
 from pathlib import Path
 from typing import List, Tuple
+from spectrogram.config_reader import get_spectral_noise_reduction_property, \
+    get_high_pass_filter_property, get_normalisation_property
 
 # Noise-region detection is handled separately
 from spectrogram.noise_detection import find_noise_regions
 
 
-def extract_noise_audio(
-    y: np.ndarray,
-    noise_regions: List[Tuple[int, int]],
-) -> np.ndarray:
+def extract_noise_audio(y: np.ndarray, noise_regions: List[Tuple[int, int]]) -> np.ndarray:
     """
     Concatenate all detected noise regions into a single 1D noise sample.
 
@@ -47,15 +46,7 @@ def extract_noise_audio(
     return np.concatenate(chunks)
 
 
-def spectral_noise_reduce(
-    y: np.ndarray,
-    sr: int,
-    noise_audio: np.ndarray,
-    n_fft: int = 2048,
-    hop_length: int = 256,
-    reduction_strength: float = 1.25,
-    floor_fraction: float = 0.10,
-) -> np.ndarray:
+def spectral_noise_reduce(y: np.ndarray, noise_audio: np.ndarray) -> np.ndarray:
     """
     Apply simple spectral subtraction / floor-gating noise reduction.
 
@@ -73,16 +64,18 @@ def spectral_noise_reduce(
 
     Args:
         y: Input waveform.
-        sr: Sample rate.
         noise_audio: Concatenated noise-only sample.
-        n_fft: FFT size (controls frequency resolution).
-        hop_length: Step between frames (controls time resolution).
-        reduction_strength: Multiplier for how aggressively noise is removed.
-        floor_fraction: Minimum retained energy per bin (prevents artefacts).
 
     Returns:
         Noise-reduced waveform.
     """
+
+    # Load configuration properties
+    n_fft = get_spectral_noise_reduction_property("n_fft")
+    hop_length = get_spectral_noise_reduction_property("hop_length")
+    reduction_strength = get_spectral_noise_reduction_property("reduction_strength")
+    floor_fraction = get_spectral_noise_reduction_property("floor_fraction")
+
     if len(noise_audio) < n_fft:
         # Not enough noise to estimate a reliable profile
         return y.copy()
@@ -120,12 +113,7 @@ def spectral_noise_reduce(
     return y_reduced
 
 
-def high_pass_filter(
-    y: np.ndarray,
-    sr: int,
-    cutoff_hz: float = 2500.0,
-    order: int = 4,
-) -> np.ndarray:
+def high_pass_filter(y: np.ndarray, sr: int) -> np.ndarray:
     """
     Apply a Butterworth high-pass filter.
 
@@ -139,20 +127,17 @@ def high_pass_filter(
     Args:
         y: Input waveform.
         sr: Sample rate.
-        cutoff_hz: Cutoff frequency.
-        order: Filter order.
 
     Returns:
         Filtered waveform.
     """
+    order = get_high_pass_filter_property("order")
+    cutoff_hz = get_high_pass_filter_property("cutoff_hz")
     b, a = signal.butter(order, cutoff_hz, btype="highpass", fs=sr)
     return signal.filtfilt(b, a, y)
 
 
-def normalize_audio(
-    y: np.ndarray,
-    peak_target: float = 0.95,
-) -> np.ndarray:
+def normalize_audio(y: np.ndarray) -> np.ndarray:
     """
     Normalize audio to a target peak level.
 
@@ -162,7 +147,6 @@ def normalize_audio(
 
     Args:
         y: Input waveform.
-        peak_target: Desired maximum absolute amplitude.
 
     Returns:
         Scaled waveform.
@@ -170,30 +154,12 @@ def normalize_audio(
     peak = float(np.max(np.abs(y)))
     if peak <= 0:
         return y.copy()
+
+    peak_target = get_normalisation_property("peak_target")
     return peak_target * (y / peak)
 
 
-def process_audio_file(
-    input_file: str | Path,
-    output_file: str | Path,
-    *,
-    # Noise-region detection
-    noise_window_ms: float = 50.0,
-    noise_hop_ms: float = 25.0,
-    rms_percentile: float = 35.0,
-    band_ratio_percentile: float = 40.0,
-    min_region_ms: float = 150.0,
-    band_low_hz: float = 3500.0,
-    band_high_hz: float = 6500.0,
-    # Spectral denoise
-    n_fft: int = 2048,
-    hop_length: int = 256,
-    reduction_strength: float = 1.25,
-    floor_fraction: float = 0.10,
-    # Filtering / output
-    highpass_cutoff_hz: float = 2500.0,
-    normalize_peak: float = 0.95,
-) -> dict:
+def process_audio_file(input_file: str | Path, output_file: str | Path) -> dict:
     """
     End-to-end processing pipeline for a single audio file.
 
@@ -221,44 +187,19 @@ def process_audio_file(
     y, sr = librosa.load(str(input_file), sr=None, mono=True)
 
     # Step 1: Identify likely noise-only regions
-    noise_regions = find_noise_regions(
-        y=y,
-        sr=sr,
-        window_ms=noise_window_ms,
-        hop_ms=noise_hop_ms,
-        rms_percentile=rms_percentile,
-        band_ratio_percentile=band_ratio_percentile,
-        min_region_ms=min_region_ms,
-        band_low_hz=band_low_hz,
-        band_high_hz=band_high_hz,
-    )
+    noise_regions = find_noise_regions(y, sr)
 
     # Step 2: Build a noise sample from those regions
     noise_audio = extract_noise_audio(y, noise_regions)
 
     # Step 3: Reduce noise using spectral subtraction
-    y_processed = spectral_noise_reduce(
-        y=y,
-        sr=sr,
-        noise_audio=noise_audio,
-        n_fft=n_fft,
-        hop_length=hop_length,
-        reduction_strength=reduction_strength,
-        floor_fraction=floor_fraction,
-    )
+    y_processed = spectral_noise_reduce(y, noise_audio)
 
     # Step 4: Remove low-frequency rumble
-    y_processed = high_pass_filter(
-        y_processed,
-        sr=sr,
-        cutoff_hz=highpass_cutoff_hz,
-    )
+    y_processed = high_pass_filter(y_processed, sr)
 
     # Step 5: Normalize for consistent output level
-    y_processed = normalize_audio(
-        y_processed,
-        peak_target=normalize_peak,
-    )
+    y_processed = normalize_audio(y_processed)
 
     # Step 6: Save processed audio
     sf.write(str(output_file), y_processed, sr)

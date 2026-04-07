@@ -11,7 +11,7 @@ export PROJECT_ROOT=$( cd "$( dirname "$0" )/.." && pwd )
 cd "$PROJECT_ROOT"
 
 # Run the analyser
-python -m spectrogram --input "$1" --noise-detection
+python -m spectrogram --config "$PROJECT_ROOT/config.json" --input "$1" --noise-detection
 
 # Restore the current folder
 cd "$CWD"

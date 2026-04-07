@@ -38,7 +38,7 @@ Open a terminal window and run the following from the project folder:
 
 ```bash
 source ./venv/bin/activate
-python -m spectrogram --input /path/to/audio/file.wav --spectrogram
+python -m spectrogram --config config.json --input /path/to/audio/file.wav --spectrogram
 ```
 
 A window should be displayed showing the chart:
@@ -51,7 +51,7 @@ Open a terminal window and run the following from the project folder:
 
 ```bash
 source ./venv/bin/activate
-python -m spectrogram --input /path/to/audio/file.wav --noise-detection
+python -m spectrogram --config config.json --input /path/to/audio/file.wav --noise-detection
 ```
 A window should be displayed showing the chart:
 
@@ -63,7 +63,7 @@ To run an audio file through the noise reduction pipeline (see below), open a te
 
 ```bash
 source ./venv/bin/activate
-python -m spectrogram --input /path/to/audio/file.wav --output /path/to/output/file.wav --process
+python -m spectrogram --config config.json --input /path/to/audio/file.wav --output /path/to/output/file.wav --process
 ```
 
 # Audio Processing Pipeline
@@ -138,6 +138,61 @@ Neighbouring “noise” windows are merged into longer regions, and only region
 - It works best when recordings contain genuine gaps between calls
 - On dense or noisy recordings, it will tend to select the least signal-like sections rather than perfectly clean noise
 - The goal is consistency and practicality, not perfect isolation
+
+# Configuration File
+
+The _config.json_ file in the root of the project contains configuration properties for the spectrogram viewer and processing pipeline.
+
+## Spectrogram Viewer
+
+| Section     | Property   | Purpose          |
+| ----------- | ---------- | ---------------- |
+| spectrogram | n_fft      | STFT window size |
+| spectrogram | hop_length | STFT hop length  |
+
+## Noise Detection
+
+These parameters control how the tool identifies likely noise-only regions within a recording:
+
+| Section                  | Property              | Purpose                                                                                                   |
+| ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------- |
+| noise_detection          | window_ms             | Length of each analysis window used to evaluate the signal (larger = smoother, smaller = more responsive) |
+| noise_detection          | hop_ms                | Distance between successive windows (smaller values increase overlap and detection precision)             |
+| noise_detection          | rms_percentile        | Selects the quietest windows based on loudness (percentage of windows treated as “quiet”)                 |
+| noise_detection          | band_ratio_percentile | Selects windows with the least energy in the expected signal band (helps exclude faint calls)             |
+| noise_detection          | min_region_ms         | Minimum duration required for a region to be considered valid noise (removes short gaps between calls)    |
+| noise_detection          | band_low_hz           | Lower frequency bound of the expected signal band (used to detect bat-like energy)                        |
+| noise_detection          | band_high_hz          | Upper frequency bound of the expected signal band (used to detect bat-like energy)                        |
+| spectral_noise_reduction | n_fft                 | Size of the FFT window used for time–frequency analysis (controls frequency resolution)                   |
+
+## Spectral Noise Reduction
+
+These parameters control the spectral noise reduction stage, where an estimated noise profile is subtracted from the signal in the frequency domain.
+
+| Section                  | Property           | Purpose                                                                                                             |
+| ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| spectral_noise_reduction | n_fft              | Length of each FFT window used to analyse the signal (larger = better frequency detail, lower = better time detail) |
+| spectral_noise_reduction | hop_length         | Distance between successive FFT windows (smaller values increase overlap and smoothness)                            |
+| spectral_noise_reduction | reduction_strength | Scales how much of the noise profile is removed from the signal (too high may introduce artefacts)                  |
+| spectral_noise_reduction | floor_fraction     | Sets a minimum retained signal level to avoid “holes” or unnatural distortion after noise subtraction               |
+
+## High Pass Filter
+
+These parameters control the high-pass filtering stage, which removes low-frequency noise and focuses the signal on the frequency range of interest.
+
+| Section          | Property  | Purpose                                                                                          |
+| ---------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| high_pass_filter | cutoff_hz | Cutoff frequency of the filter; frequencies below this are reduced to remove low-frequency noise |
+| high_pass_filter | order     | Determines how steeply the filter rolls off below the cutoff (higher = sharper transition)       |
+
+## Normalisation
+
+These parameters control the final normalisation step, which adjusts the overall signal level for consistency.
+
+| Section       | Property    | Purpose                                                                                     |
+| ------------- | ----------- | ------------------------------------------------------------------------------------------- |
+| normalisation | peak_target | Maximum amplitude to scale the signal to (ensures consistent output level without clipping) |
+
 
 # Authors
 
