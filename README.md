@@ -34,15 +34,37 @@ This assumes a Mac or Linux-based setup and should be modified if running on Win
 
 ### Viewing a Spectrogram
 
-Open a terminal window and run the following:
+Open a terminal window and run the following from the project folder:
 
 ```bash
-python -m spectrogram --file /path/to/audio/file.wav
+source ./venv/bin/activate
+python -m spectrogram --input /path/to/audio/file.wav --spectrogram
 ```
 
-A window should be displayed showing the charts:
+A window should be displayed showing the chart:
 
-![Example Spectrogram](https://github.com/davewalker5/SpectrogramViewer/blob/main/diagrams/example.png)
+![Example Spectrogram](https://github.com/davewalker5/SpectrogramViewer/blob/main/diagrams/spectrogram.png)
+
+### Viewing a Noise Detection Profile
+
+Open a terminal window and run the following from the project folder:
+
+```bash
+source ./venv/bin/activate
+python -m spectrogram --input /path/to/audio/file.wav --noise-detection
+```
+A window should be displayed showing the chart:
+
+![Example Noise Detection Profile](https://github.com/davewalker5/SpectrogramViewer/blob/main/diagrams/noise-detection.png)
+
+### Processing an Audio File
+
+To run an audio file through the noise reduction pipeline (see below), open a terminal window and run the following from the project folder:
+
+```bash
+source ./venv/bin/activate
+python -m spectrogram --input /path/to/audio/file.wav --output /path/to/output/file.wav --process
+```
 
 # Audio Processing Pipeline
 
