@@ -76,18 +76,14 @@ It follows the same general approach as a manual workflow in tools like Audacity
 
 Each input recording is processed in the following stages:
 
-1.	Detect noise regions
-    The recording is scanned to find short sections that are likely to contain background noise only (quiet and low in signal-band energy) - the noise detection algorithm is documented in more detail, below
-2.	Build a noise profile
-    These regions are combined into a single sample, representing the background noise in the recording.
-3.	Reduce noise (spectral subtraction)
-    The recording is transformed into the frequency domain, and the estimated noise profile is subtracted from each time slice. A small floor is retained to avoid introducing artefacts.
-4.	High-pass filter
-    Low-frequency rumble and handling noise are removed, focusing the signal on the frequency range where bat calls occur (after time expansion).
-5.	Normalise
-    The result is scaled to a consistent peak level, making quiet recordings easier to inspect and listen to.
-6.	Output
-    The processed audio is written to disk for further inspection or visualisation.
+| #   | Summary                             | Description                                                                                                                                                                                                |
+| --- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Detect noise regions                | The recording is scanned to find short sections that are likely to contain background noise only (quiet and low in signal-band energy) - the noise detection algorithm is documented in more detail, below |
+| 2   | Build a noise profile               | These regions are combined into a single sample, representing the background noise in the recording                                                                                                        |
+| 3   | Reduce noise (spectral subtraction) | The recording is transformed into the frequency domain, and the estimated noise profile is subtracted from each time slice. A small floor is retained to avoid introducing artefacts                       |
+| 4   | High-pass filter                    | Low-frequency rumble and handling noise are removed, focusing the signal on the frequency range where bat calls occur (after time expansion)                                                               |
+| 5   | Normalise                           | The result is scaled to a consistent peak level, making quiet recordings easier to inspect and listen to                                                                                                   |
+| 6   | Output                              | The processed audio is written to disk for further inspection or visualisation                                                                                                                             |
 
 ## Design goals
 
@@ -123,8 +119,9 @@ And the ratio of the two is then calculated:
 - High ratio &rarr; structured signal (e.g. bat calls)
 
 A window is considered likely noise if it is both:
-- relatively quiet compared to the rest of the recording, and
-- relatively low in energy within the target band
+
+- Relatively quiet compared to the rest of the recording, and
+- Relatively low in energy within the target band
 
 Thresholds are determined using percentiles, so the detection adapts to each recording rather than relying on fixed values.
 
