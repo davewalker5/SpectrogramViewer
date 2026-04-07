@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spectrogram"
-version = "1.0.0"
-description = "Spectrogram and waveform viewer for audio recordings"
+version = "1.1.0"
+description = "Spectrogram Viewer and Audio Processing Tool"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
