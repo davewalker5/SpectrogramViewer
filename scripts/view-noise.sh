@@ -6,12 +6,8 @@ if [[ $# != 1 ]]; then
 fi
 
 # Activate the virtual environment
-CWD=`pwd`
 export PROJECT_ROOT=$( cd "$( dirname "$0" )/.." && pwd )
-cd "$PROJECT_ROOT"
+source "$PROJECT_ROOT/venv/bin/activate"
 
 # Run the analyser
 python -m spectrogram --config "$PROJECT_ROOT/config.json" --input "$1" --noise-detection
-
-# Restore the current folder
-cd "$CWD"
