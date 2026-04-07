@@ -111,7 +111,7 @@ The recording is divided into short, overlapping windows (typically 50 ms). For 
 - Loudness (RMS amplitude) &rarr; Quieter windows are more likely to contain background noise only.
 - Band energy ratio &rarr; The fraction of spectral energy within the expected signal band (for bat recordings, typically ~3.5–6.5 kHz after time expansion).
 
-And the ratio of the two is then calculated:
+The band energy ratio is then used to identify the type of signal in the window:
 
 - Low ratio &rarr; broadband noise / hiss
 - High ratio &rarr; structured signal (e.g. bat calls)
