@@ -138,6 +138,36 @@ Neighbouring “noise” windows are merged into longer regions, and only region
 
 The _config.json_ file in the root of the project contains configuration properties for the spectrogram viewer and processing pipeline.
 
+## Named Profiles
+
+The file has the following structure:
+
+```json
+{
+    "default": {
+
+    },
+    "heterodyne": {
+
+    }
+}
+```
+
+It's a dictionary of dictionaries, each one representing a named set of parameters. On the command line, the profile to use is specified using:
+
+```bash
+--profile "<name>"
+```
+
+This can be specified for the spectrogram plotting, noise detection and audio processing options, documented above. If no profile is specified, the _default_ profile is used. For example, to process a file using the heterodyne processing parameters, the command line would be:
+
+```bash
+source ./venv/bin/activate
+python -m spectrogram --config config.json --profile "heterodyne" --input /path/to/audio/file.wav --output /path/to/output/file.wav --process
+```
+
+The remainder of this section describes each of the parameters.
+
 ## Spectrogram Viewer
 
 | Section     | Property   | Purpose          |
