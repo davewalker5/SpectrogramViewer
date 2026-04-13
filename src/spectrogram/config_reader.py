@@ -1,8 +1,11 @@
 import json
 import tomllib
 from pathlib import Path
+from pprint import pprint as pp
 from importlib.metadata import PackageNotFoundError, version
 
+_PROFILE_NAME = ""
+_CONFIG_FILE = ""
 _CONFIG = {}
 
 
@@ -30,12 +33,21 @@ def get_application_version(package_name: str, project_folder: str) -> str:
     return "0+unknown"
 
 
-def load_config(config_file: str):
+def load_config(config_file: str, profile: str):
     """Load the JSON configuration file """
-    global _CONFIG
+    global _CONFIG, _PROFILE_NAME, _CONFIG_FILE
     file_path = Path(config_file).resolve()
+    _CONFIG_FILE = file_path
     with open(file_path, "r") as file:
-        _CONFIG = json.load(file)
+        _PROFILE_NAME = profile
+        _CONFIG = json.load(file)[_PROFILE_NAME]
+
+
+def print_config():
+    """Print the current configuration"""
+    global _CONFIG, _PROFILE_NAME, _CONFIG_FILE
+    print(f"Using profile '{_PROFILE_NAME}' from '{_CONFIG_FILE}':")
+    pp(_CONFIG)
 
 
 def get_property(section: str, property: str) -> str:
