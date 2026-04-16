@@ -9,6 +9,10 @@ _CONFIG_FILE = ""
 _CONFIG = {}
 
 
+class ConfigurationError(Exception):
+    pass
+
+
 def get_application_version(package_name: str, project_folder: str) -> str:
     """
     Return the application version.
@@ -50,32 +54,44 @@ def print_config():
     pp(_CONFIG)
 
 
-def get_property(section: str, property: str) -> str:
+def get_property(section: str, property: str):
     """Return a property from a config section """
     global _CONFIG
+
+    if section not in _CONFIG:
+        raise ConfigurationError(f"The '{section}' configuration section is not defined for profile '{_PROFILE_NAME}'")
+
+    if property not in _CONFIG[section]:
+        raise ConfigurationError(f"Property '{property}' is not defined in the '{section}' section for profile '{_PROFILE_NAME}'")
+
     return _CONFIG[section][property]
 
 
-def get_spectrogram_property(property: str) -> str:
+def get_spectrogram_property(property: str):
     """Return a spectrogram property """
     return get_property("spectrogram", property)
 
 
-def get_noise_detection_property(property: str) -> str:
+def get_noise_detection_property(property: str):
     """Return a noise detection property """
     return get_property("noise_detection", property)
 
 
-def get_spectral_noise_reduction_property(property: str) -> str:
+def get_spectral_noise_reduction_property(property: str):
     """Return a spectral noise reduction property """
     return get_property("spectral_noise_reduction", property)
 
 
-def get_high_pass_filter_property(property: str) -> str:
+def get_high_pass_filter_property(property: str):
     """Return a spectral noise reduction property """
     return get_property("high_pass_filter", property)
 
 
-def get_normalisation_property(property: str) -> str:
+def get_normalisation_property(property: str):
     """Return a peak normalisation property """
     return get_property("normalisation", property)
+
+
+def get_call_analysis_property(property: str):
+    """Return a peak normalisation property """
+    return get_property("analysis", property)

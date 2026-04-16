@@ -208,7 +208,8 @@ def plot_waveform_with_noise_regions(
     y: np.ndarray,
     sr: int,
     noise_regions: List[Tuple[int, int]],
-    title: str
+    title: str,
+    output_path: str
 ) -> None:
     """
     Plot waveform and shade detected noise regions.
@@ -216,7 +217,7 @@ def plot_waveform_with_noise_regions(
 
     t = np.arange(len(y)) / sr
 
-    fig, ax = plt.subplots(figsize=(12, 4))
+    _, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t, y, linewidth=0.8)
 
     for start, end in noise_regions:
@@ -227,10 +228,11 @@ def plot_waveform_with_noise_regions(
     ax.set_ylabel("Amplitude")
     ax.margins(x=0)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
 
 
-def inspect_noise_detection(file_path: str, title: str) -> List[Tuple[int, int]]:
+def inspect_noise_detection(file_path: str, title: str, output_path: str) -> List[Tuple[int, int]]:
     """
     Load an audio file, detect likely noise-only regions, plot them, and return them.
     """
@@ -242,6 +244,6 @@ def inspect_noise_detection(file_path: str, title: str) -> List[Tuple[int, int]]
     if not title:
         title = f"Detected Noise Regions for {Path(file_path).name.upper()}"
 
-    plot_waveform_with_noise_regions(y, sr, noise_regions, title=title)
+    plot_waveform_with_noise_regions(y, sr, noise_regions, title, output_path)
 
     return noise_regions

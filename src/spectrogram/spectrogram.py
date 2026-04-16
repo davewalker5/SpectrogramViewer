@@ -6,7 +6,7 @@ from pathlib import Path
 from spectrogram.config_reader import get_spectrogram_property
 
 
-def show_spectrogram(file_path: str, title: str) -> None:
+def show_spectrogram(file_path: str, title: str, output_path: str) -> None:
     """
     Chart the waveform and spectrogram derived from that waveform
     """
@@ -88,4 +88,6 @@ def show_spectrogram(file_path: str, title: str) -> None:
     ax_spec.set_xlabel("Time")
     ax_spec.set_ylabel("Hz")
     ax_wave.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    plt.show()
+
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)

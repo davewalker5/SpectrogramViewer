@@ -3,14 +3,17 @@
 # --------------------------------------------------------------------------------
 import argparse
 from pathlib import Path
+from pprint import pprint as pp
 
 # --------------------------------------------------------------------------------
 # Spectrogram application inports
 # --------------------------------------------------------------------------------
-from spectrogram.config_reader import get_application_version, load_config, print_config
+from spectrogram.config_reader import get_application_version, load_config, ConfigurationError
 from spectrogram.spectrogram import show_spectrogram
 from spectrogram.noise_detection import inspect_noise_detection
 from spectrogram.pipeline import process_audio_file
+from spectrogram.waveform import show_waveform
+from spectrogram.call_analysis import analyse_audio_file
 
 # --------------------------------------------------------------------------------
 # Program properties
@@ -33,26 +36,37 @@ def parse_args() -> argparse.Namespace:
 
     # Parse the command line arguments
     parser.add_argument("-i", "--input", help="Input audio file path")
-    parser.add_argument("-o", "--output", help="Output audio file path")
+    parser.add_argument("-o", "--output", help="Output file or folder path")
     parser.add_argument("-c", "--config", help="Configuration file path")
     parser.add_argument("-pr", "--profile", default="default", help="Configuration profile name")
+    parser.add_argument("-ef", "--expansion-factor", type=float, default=10.0, help="Time expansion factor")
     parser.add_argument("-t", "--title", help="Chart title")
+    parser.add_argument("-w", "--waveform", action='store_true', help="Plot the waveform for the input file")
     parser.add_argument("-s", "--spectrogram", action='store_true', help="Plot the spectrogram for the input file")
     parser.add_argument("-nd", "--noise-detection", action='store_true', help="Identify and plot noise regions in the input file")
     parser.add_argument("-p", "--process", action='store_true', help="Process the input file and write the processed output to the output file")
+    parser.add_argument("-a", "--analyse", action='store_true', help="Analyse the input WAV file for bat call structure")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    load_config(args.config, args.profile)
-    print_config()
+
+    if args.config and args.profile:
+        load_config(args.config, args.profile)
+
     try:
-        if args.spectrogram:
-            show_spectrogram(args.input, args.title)
+        if args.waveform:
+            show_waveform(args.input, args.title, args.output)
+        elif args.spectrogram:
+            show_spectrogram(args.input, args.title, args.output)
         elif args.noise_detection:
-            inspect_noise_detection(args.input, args.title)
+            inspect_noise_detection(args.input, args.title, args.output)
         elif args.process:
             process_audio_file(args.input, args.output)
+        elif args.analyse:
+            analyse_audio_file(args.input, args.expansion_factor, args.output)
+    except ConfigurationError as e:
+        print(e)
     except KeyboardInterrupt:
         pass
