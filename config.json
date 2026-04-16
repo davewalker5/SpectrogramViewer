@@ -25,6 +25,30 @@
         },
         "normalisation": {
             "peak_target": 0.95
+        },
+        "analysis": {
+            "envelope_smooth_ms": 2.0,
+            "noise_floor_percentile": 15.0,
+            "threshold_sigma": 2.2,
+            "min_threshold": 0.010,
+            "max_gap_ms": 6.0,
+            "min_region_ms": 4.0,
+            "pre_padding_ms": 1.0,
+            "post_padding_ms": 10.0,
+            "attack_threshold_fraction": 0.30,
+            "decay_threshold_fraction": 0.08,
+            "buzz_max_ipi_ms": 35.0,
+            "buzz_min_run_length": 4,
+            "buzz_search_tail_fraction": 0.33,
+            "buzz_recovery_enabled": true,
+            "buzz_recovery_threshold_fraction": 0.27,
+            "buzz_recovery_min_peak_distance_ms": 9.0,
+            "buzz_recovery_region_ms": 8.0,
+            "spectral_n_fft": 1024,
+            "spectral_hop_length": 128,
+            "spectral_window": "hann",
+            "spectral_min_valid_bins": 3,
+            "json_indent": 2
         }
     },
     "heterodyne": {
