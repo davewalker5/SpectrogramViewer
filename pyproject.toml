@@ -9,9 +9,14 @@ description = "Spectrogram Viewer and Audio Processing Tool"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "matplotlib",
+    "ipykernel",
     "librosa",
+    "matplotlib",
+    "nbformat",
+    "notebook",
     "numpy",
+    "openpyxl",
+    "pandas",
     "soundfile"
 ]
 
