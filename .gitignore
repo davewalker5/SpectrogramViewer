@@ -140,4 +140,4 @@ cython_debug/
 .DS_Store
 .vscode/
 .idea/
-data/*.wav
+exported/

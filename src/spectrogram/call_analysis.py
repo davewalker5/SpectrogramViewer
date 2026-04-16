@@ -98,6 +98,7 @@ def analyse_audio_file(input: str, expansion_factor: float, output_folder: str):
         buzz_max_ipi_ms=float(get_call_analysis_property("buzz_max_ipi_ms")),
         buzz_min_run_length=int(get_call_analysis_property("buzz_min_run_length")),
         buzz_search_tail_fraction=float(get_call_analysis_property("buzz_search_tail_fraction")),
+        expansion_factor=expansion_factor,
     )
 
     if bool(get_call_analysis_property("buzz_recovery_enabled")):
@@ -113,6 +114,7 @@ def analyse_audio_file(input: str, expansion_factor: float, output_folder: str):
                 get_call_analysis_property("buzz_recovery_min_peak_distance_ms")
             ),
             region_ms=float(get_call_analysis_property("buzz_recovery_region_ms")),
+            expansion_factor=expansion_factor,
         )
 
     plot_path = _plot_waveform_with_regions(
@@ -342,35 +344,46 @@ def _mark_feeding_buzz(
     buzz_max_ipi_ms: float,
     buzz_min_run_length: int,
     buzz_search_tail_fraction: float,
+    expansion_factor: float,
 ) -> List[PingRegion]:
     """
-    Mark the best terminal run of tightly spaced pulses as feeding buzz.
+    Identify the terminal feeding buzz as the densest late-stage run of closely
+    spaced pulses.
 
-    Purpose:
-    the feeding buzz is behaviourally important and structurally different from the
-    earlier hunting pulses. Rather than trying to identify it from pulse shape alone,
-    this stage uses timing: the best run of closely spaced peaks near the end of the
-    recording is labelled as the buzz. Those labels are then used by plotting, JSON
-    output, and the optional buzz-recovery pass.
+    Earlier versions required every IPI in a run to fall below the threshold.
+    In practice, real buzzes often contain a small irregularity at the start,
+    so this version allows a single over-threshold gap within an otherwise
+    buzz-like run.
+    The configured buzz IPI threshold is interpreted in real bat time, so it is
+    converted back into the slowed TE time domain before being compared with the
+    peak-to-peak intervals measured in the waveform.
     """
     if len(regions) < buzz_min_run_length:
         return regions
 
     regions = sorted(regions, key=lambda r: r.peak_time_s)
 
+    # Restrict buzz detection to the final portion of the sequence so that
+    # earlier short-IPIs are not mistaken for a terminal buzz.
     tail_start_time = regions[-1].peak_time_s * (1.0 - buzz_search_tail_fraction)
     tail_indices = [i for i, r in enumerate(regions) if r.peak_time_s >= tail_start_time]
 
     if len(tail_indices) < buzz_min_run_length:
         tail_indices = list(range(len(regions)))
 
-    buzz_max_ipi_s = buzz_max_ipi_ms / 1000.0
+    # Peak times are measured on the slowed TE waveform, so convert the configured
+    # real-time buzz threshold into expanded-time seconds before comparing IPIs.
+    buzz_max_ipi_s = (buzz_max_ipi_ms / 1000.0) * expansion_factor
+    allowed_gap_breaks = 1
+
     best_run: List[int] = []
     current_run: List[int] = []
+    gap_breaks_used = 0
 
     for pos, idx in enumerate(tail_indices):
         if pos == 0:
             current_run = [idx]
+            gap_breaks_used = 0
             continue
 
         prev_idx = tail_indices[pos - 1]
@@ -378,17 +391,37 @@ def _mark_feeding_buzz(
 
         if ipi <= buzz_max_ipi_s:
             current_run.append(idx)
-        else:
-            if len(current_run) > len(best_run):
-                best_run = current_run[:]
-            current_run = [idx]
+            continue
+
+        # Allow one slightly long interval inside an otherwise dense terminal run.
+        if gap_breaks_used < allowed_gap_breaks:
+            current_run.append(idx)
+            gap_breaks_used += 1
+            continue
+
+        if len(current_run) > len(best_run):
+            best_run = current_run[:]
+
+        current_run = [idx]
+        gap_breaks_used = 0
 
     if len(current_run) > len(best_run):
         best_run = current_run[:]
 
+    # Only mark a run if it contains enough genuinely short IPIs to be
+    # consistent with a feeding buzz.
     if len(best_run) >= buzz_min_run_length:
-        for idx in best_run:
-            regions[idx].is_feeding_buzz = True
+        short_ipi_count = 0
+        for i in range(1, len(best_run)):
+            prev_idx = best_run[i - 1]
+            curr_idx = best_run[i]
+            ipi = regions[curr_idx].peak_time_s - regions[prev_idx].peak_time_s
+            if ipi <= buzz_max_ipi_s:
+                short_ipi_count += 1
+
+        if short_ipi_count >= max(1, buzz_min_run_length - 1):
+            for idx in best_run:
+                regions[idx].is_feeding_buzz = True
 
     return regions
 
@@ -402,6 +435,7 @@ def _recover_missing_buzz_pulses(
     recovery_threshold_fraction: float,
     min_peak_distance_ms: float,
     region_ms: float,
+    expansion_factor: float,
 ) -> List[PingRegion]:
     """
     Recover narrow missed buzz pulses with a second-pass detector in the buzz tail only.
@@ -412,6 +446,9 @@ def _recover_missing_buzz_pulses(
     searches the already-identified buzz tail and picks extra local peaks there. That
     keeps the earlier conical decays more stable while still improving terminal-buzz
     coverage.
+    The minimum spacing between recovered peaks is configured in real bat time,
+    so it is also converted back into expanded-time samples before peak picking
+    on the slowed TE waveform.
     """
     if not regions:
         return regions
@@ -430,8 +467,12 @@ def _recover_missing_buzz_pulses(
         return regions
 
     threshold = local_peak * recovery_threshold_fraction
-    min_peak_distance = max(1, int(round(sr * min_peak_distance_ms / 1000.0)))
-    half_region = max(1, int(round(sr * region_ms / 1000.0 / 2.0)))
+    min_peak_distance = max(
+        1, int(round(sr * (min_peak_distance_ms / 1000.0) * expansion_factor))
+    )
+    half_region = max(
+        1, int(round(sr * (region_ms / 1000.0) * expansion_factor / 2.0))
+    )
 
     candidate_peaks: List[int] = []
     last_peak = -min_peak_distance
@@ -483,6 +524,7 @@ def _recover_missing_buzz_pulses(
         buzz_max_ipi_ms=float(get_call_analysis_property("buzz_max_ipi_ms")),
         buzz_min_run_length=int(get_call_analysis_property("buzz_min_run_length")),
         buzz_search_tail_fraction=float(get_call_analysis_property("buzz_search_tail_fraction")),
+        expansion_factor=expansion_factor,
     )
 
     return combined
