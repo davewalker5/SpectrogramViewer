@@ -347,70 +347,103 @@ def _mark_feeding_buzz(
     expansion_factor: float,
 ) -> List[PingRegion]:
     """
-    Identify the terminal feeding buzz as the densest late-stage run of closely
-    spaced pulses.
+    Identify terminal feeding-buzz runs in one or more pulse sequences.
 
-    Earlier versions required every IPI in a run to fall below the threshold.
-    In practice, real buzzes often contain a small irregularity at the start,
-    so this version allows a single over-threshold gap within an otherwise
-    buzz-like run.
-    The configured buzz IPI threshold is interpreted in real bat time, so it is
-    converted back into the slowed TE time domain before being compared with the
-    peak-to-peak intervals measured in the waveform.
+    Purpose:
+    a single recording may contain more than one pass. Earlier versions only looked
+    for the single best buzz run in the final tail of the whole recording, which meant
+    duplicated or multi-pass recordings could only ever end up with the last buzz
+    labelled. This version first breaks the pulse train into coarse sequence groups
+    using large IPI gaps, then looks for a late-stage dense run inside each group.
+
+    Behaviour:
+    - the configured buzz IPI threshold is interpreted in real bat time and converted
+      into slowed TE time before comparison
+    - one over-threshold gap is allowed inside an otherwise buzz-like run
+    - every qualifying late-stage run is marked, not just the final one in the file
     """
     if len(regions) < buzz_min_run_length:
         return regions
 
     regions = sorted(regions, key=lambda r: r.peak_time_s)
 
-    # Restrict buzz detection to the final portion of the sequence so that
-    # earlier short-IPIs are not mistaken for a terminal buzz.
-    tail_start_time = regions[-1].peak_time_s * (1.0 - buzz_search_tail_fraction)
-    tail_indices = [i for i, r in enumerate(regions) if r.peak_time_s >= tail_start_time]
-
-    if len(tail_indices) < buzz_min_run_length:
-        tail_indices = list(range(len(regions)))
-
     # Peak times are measured on the slowed TE waveform, so convert the configured
     # real-time buzz threshold into expanded-time seconds before comparing IPIs.
     buzz_max_ipi_s = (buzz_max_ipi_ms / 1000.0) * expansion_factor
     allowed_gap_breaks = 1
 
-    best_run: List[int] = []
-    current_run: List[int] = []
-    gap_breaks_used = 0
+    # Use a generous multiple of the buzz threshold to split the full pulse train into
+    # coarse groups. This is not formal pass segmentation; it is just enough to stop
+    # separate sequences in one file from competing for a single buzz label.
+    # grouping_gap_s = buzz_max_ipi_s * 3.0
+    grouping_gap_s = buzz_max_ipi_s * 7.0
 
-    for pos, idx in enumerate(tail_indices):
-        if pos == 0:
+    grouped_indices: List[List[int]] = []
+    current_group: List[int] = [0]
+
+    for idx in range(1, len(regions)):
+        ipi = regions[idx].peak_time_s - regions[idx - 1].peak_time_s
+        if ipi > grouping_gap_s:
+            grouped_indices.append(current_group)
+            current_group = [idx]
+        else:
+            current_group.append(idx)
+
+    if current_group:
+        grouped_indices.append(current_group)
+
+    def _find_best_run(indices: List[int]) -> List[int]:
+        """Find the best buzz-like run within one late-stage group of pulses."""
+        if len(indices) < buzz_min_run_length:
+            return []
+
+        group_start_time = regions[indices[0]].peak_time_s
+        group_end_time = regions[indices[-1]].peak_time_s
+        group_duration = group_end_time - group_start_time
+
+        if group_duration <= 0:
+            tail_indices = indices[:]
+        else:
+            tail_start_time = group_end_time - (group_duration * buzz_search_tail_fraction)
+            tail_indices = [i for i in indices if regions[i].peak_time_s >= tail_start_time]
+            if len(tail_indices) < buzz_min_run_length:
+                tail_indices = indices[:]
+
+        best_run: List[int] = []
+        current_run: List[int] = []
+        gap_breaks_used = 0
+
+        for pos, idx in enumerate(tail_indices):
+            if pos == 0:
+                current_run = [idx]
+                gap_breaks_used = 0
+                continue
+
+            prev_idx = tail_indices[pos - 1]
+            ipi = regions[idx].peak_time_s - regions[prev_idx].peak_time_s
+
+            if ipi <= buzz_max_ipi_s:
+                current_run.append(idx)
+                continue
+
+            # Allow one slightly long interval inside an otherwise dense run.
+            if gap_breaks_used < allowed_gap_breaks:
+                current_run.append(idx)
+                gap_breaks_used += 1
+                continue
+
+            if len(current_run) > len(best_run):
+                best_run = current_run[:]
+
             current_run = [idx]
             gap_breaks_used = 0
-            continue
-
-        prev_idx = tail_indices[pos - 1]
-        ipi = regions[idx].peak_time_s - regions[prev_idx].peak_time_s
-
-        if ipi <= buzz_max_ipi_s:
-            current_run.append(idx)
-            continue
-
-        # Allow one slightly long interval inside an otherwise dense terminal run.
-        if gap_breaks_used < allowed_gap_breaks:
-            current_run.append(idx)
-            gap_breaks_used += 1
-            continue
 
         if len(current_run) > len(best_run):
             best_run = current_run[:]
 
-        current_run = [idx]
-        gap_breaks_used = 0
+        if len(best_run) < buzz_min_run_length:
+            return []
 
-    if len(current_run) > len(best_run):
-        best_run = current_run[:]
-
-    # Only mark a run if it contains enough genuinely short IPIs to be
-    # consistent with a feeding buzz.
-    if len(best_run) >= buzz_min_run_length:
         short_ipi_count = 0
         for i in range(1, len(best_run)):
             prev_idx = best_run[i - 1]
@@ -419,9 +452,15 @@ def _mark_feeding_buzz(
             if ipi <= buzz_max_ipi_s:
                 short_ipi_count += 1
 
-        if short_ipi_count >= max(1, buzz_min_run_length - 1):
-            for idx in best_run:
-                regions[idx].is_feeding_buzz = True
+        if short_ipi_count < max(1, buzz_min_run_length - 1):
+            return []
+
+        return best_run
+
+    for group in grouped_indices:
+        best_run = _find_best_run(group)
+        for idx in best_run:
+            regions[idx].is_feeding_buzz = True
 
     return regions
 
@@ -438,35 +477,29 @@ def _recover_missing_buzz_pulses(
     expansion_factor: float,
 ) -> List[PingRegion]:
     """
-    Recover narrow missed buzz pulses with a second-pass detector in the buzz tail only.
+    Recover narrow missed buzz pulses with a second-pass detector in already-labelled
+    buzz regions only.
 
     Purpose:
-    the settings that work well for broad hunting pulses can miss very short buzz
-    pulses. Rather than making the whole detector more aggressive, this function only
-    searches the already-identified buzz tail and picks extra local peaks there. That
-    keeps the earlier conical decays more stable while still improving terminal-buzz
-    coverage.
-    The minimum spacing between recovered peaks is configured in real bat time,
-    so it is also converted back into expanded-time samples before peak picking
-    on the slowed TE waveform.
+    the main detector is tuned to preserve broader hunting pulses and their decays, so
+    it can miss very short pulses inside a terminal buzz. Earlier versions searched
+    from the first buzz pulse to the end of the recording, which worked for single-pass
+    files but caused later passes in duplicated or multi-pass recordings to be swept
+    up into the same recovery window. This version groups existing buzz labels into
+    separate late-stage clusters and runs recovery independently inside each one.
+
+    The minimum spacing between recovered peaks is configured in real bat time, so it
+    is converted back into expanded-time samples before peak picking on the slowed TE
+    waveform.
     """
     if not regions:
         return regions
 
-    buzz_regions = [r for r in regions if r.is_feeding_buzz]
+    ordered = sorted(regions, key=lambda r: r.peak_time_s)
+    buzz_regions = [r for r in ordered if r.is_feeding_buzz]
     if not buzz_regions:
         return regions
 
-    first_buzz_start = min(r.start_sample for r in buzz_regions)
-    search_env = envelope[first_buzz_start:]
-    if len(search_env) == 0:
-        return regions
-
-    local_peak = float(np.max(search_env))
-    if local_peak <= 0:
-        return regions
-
-    threshold = local_peak * recovery_threshold_fraction
     min_peak_distance = max(
         1, int(round(sr * (min_peak_distance_ms / 1000.0) * expansion_factor))
     )
@@ -474,45 +507,80 @@ def _recover_missing_buzz_pulses(
         1, int(round(sr * (region_ms / 1000.0) * expansion_factor / 2.0))
     )
 
-    candidate_peaks: List[int] = []
-    last_peak = -min_peak_distance
+    buzz_max_ipi_s = (
+        float(get_call_analysis_property("buzz_max_ipi_ms")) / 1000.0
+    ) * expansion_factor
+    grouping_gap_s = buzz_max_ipi_s * 7.0
 
-    for i in range(1, len(search_env) - 1):
-        if search_env[i] < threshold:
-            continue
+    # Split existing buzz labels into separate clusters so each pass is recovered
+    # independently rather than treating the rest of the file as one giant buzz tail.
+    buzz_groups: List[List[PingRegion]] = []
+    current_group: List[PingRegion] = [buzz_regions[0]]
 
-        is_peak = search_env[i] >= search_env[i - 1] and search_env[i] > search_env[i + 1]
-        if not is_peak:
-            continue
+    for region in buzz_regions[1:]:
+        ipi = region.peak_time_s - current_group[-1].peak_time_s
+        if ipi > grouping_gap_s:
+            buzz_groups.append(current_group)
+            current_group = [region]
+        else:
+            current_group.append(region)
 
-        abs_i = first_buzz_start + i
-        if abs_i - last_peak >= min_peak_distance:
-            candidate_peaks.append(abs_i)
-            last_peak = abs_i
-
-    if not candidate_peaks:
-        return regions
+    if current_group:
+        buzz_groups.append(current_group)
 
     recovered: List[PingRegion] = []
-    for peak in candidate_peaks:
-        start = max(0, peak - half_region)
-        end = min(len(samples), peak + half_region)
 
-        if end <= start:
+    for group in buzz_groups:
+        group_start = max(0, min(r.start_sample for r in group) - half_region)
+        group_end = min(len(samples), max(r.end_sample for r in group) + half_region)
+
+        search_env = envelope[group_start:group_end]
+        if len(search_env) == 0:
             continue
 
-        peak_amp = float(np.max(np.abs(samples[start:end])))
-        recovered.append(
-            PingRegion(
-                start_sample=start,
-                end_sample=end,
-                start_time_s=start / sr,
-                end_time_s=end / sr,
-                peak_time_s=peak / sr,
-                peak_amplitude=peak_amp,
-                is_feeding_buzz=True,
+        local_peak = float(np.max(search_env))
+        if local_peak <= 0:
+            continue
+
+        threshold = local_peak * recovery_threshold_fraction
+        candidate_peaks: List[int] = []
+        last_peak = group_start - min_peak_distance
+
+        for i in range(1, len(search_env) - 1):
+            if search_env[i] < threshold:
+                continue
+
+            is_peak = search_env[i] >= search_env[i - 1] and search_env[i] > search_env[i + 1]
+            if not is_peak:
+                continue
+
+            abs_i = group_start + i
+            if abs_i - last_peak >= min_peak_distance:
+                candidate_peaks.append(abs_i)
+                last_peak = abs_i
+
+        for peak in candidate_peaks:
+            start = max(0, peak - half_region)
+            end = min(len(samples), peak + half_region)
+
+            if end <= start:
+                continue
+
+            peak_amp = float(np.max(np.abs(samples[start:end])))
+            recovered.append(
+                PingRegion(
+                    start_sample=start,
+                    end_sample=end,
+                    start_time_s=start / sr,
+                    end_time_s=end / sr,
+                    peak_time_s=peak / sr,
+                    peak_amplitude=peak_amp,
+                    is_feeding_buzz=True,
+                )
             )
-        )
+
+    if not recovered:
+        return regions
 
     combined = regions + recovered
     combined = _merge_overlaps(combined, sr)
@@ -1049,9 +1117,19 @@ def _plot_waveform_with_regions(
 
     for region in regions:
         if region.is_feeding_buzz:
-            ax.axvspan(region.start_time_s, region.end_time_s, alpha=0.28)
+            ax.axvspan(
+                region.start_time_s,
+                region.end_time_s,
+                color="#f6c28b",
+                alpha=0.45,
+            )
         else:
-            ax.axvspan(region.start_time_s, region.end_time_s, alpha=0.18)
+            ax.axvspan(
+                region.start_time_s,
+                region.end_time_s,
+                color="#b7d4ea",
+                alpha=0.30,
+            )
 
     ax.set_title(
         f"Call analysis for {input_path.name} "
