@@ -14,6 +14,7 @@ from spectrogram.noise_detection import inspect_noise_detection
 from spectrogram.pipeline import process_audio_file
 from spectrogram.waveform import show_waveform
 from spectrogram.call_analysis import analyse_audio_file
+from spectrogram.mock_audio import make_duplicated_recording
 
 # --------------------------------------------------------------------------------
 # Program properties
@@ -41,11 +42,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-pr", "--profile", default="default", help="Configuration profile name")
     parser.add_argument("-ef", "--expansion-factor", type=float, default=10.0, help="Time expansion factor")
     parser.add_argument("-t", "--title", help="Chart title")
+    parser.add_argument("-g", "--gap", type=float, default=0.5, help="Gap between copies in mocked audio files")
+    parser.add_argument("-r", "--repetitions", type=int, default=2, help="Number of repetitions in mocked audio files")
     parser.add_argument("-w", "--waveform", action='store_true', help="Plot the waveform for the input file")
     parser.add_argument("-s", "--spectrogram", action='store_true', help="Plot the spectrogram for the input file")
     parser.add_argument("-nd", "--noise-detection", action='store_true', help="Identify and plot noise regions in the input file")
     parser.add_argument("-p", "--process", action='store_true', help="Process the input file and write the processed output to the output file")
     parser.add_argument("-a", "--analyse", action='store_true', help="Analyse the input WAV file for bat call structure")
+    parser.add_argument("-m", "--mock", action='store_true', help="Mock up a WAV file with multiple copies of a given input file")
     return parser.parse_args()
 
 
@@ -66,6 +70,8 @@ def main():
             process_audio_file(args.input, args.output)
         elif args.analyse:
             analyse_audio_file(args.input, args.expansion_factor, args.output)
+        elif args.mock:
+            make_duplicated_recording(args.input, args.output, args.gap, args.repetitions)
     except ConfigurationError as e:
         print(e)
     except KeyboardInterrupt:
