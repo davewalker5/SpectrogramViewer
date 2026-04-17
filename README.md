@@ -95,19 +95,41 @@ python -m spectrogram --config config.json --input /path/to/audio/file.wav --out
 > [!NOTE]
 > Call detection will work best with audio that's been run through the audio processing pipeline first.
 
-To run an audio file through the call detection pipeline (see below), open a terminal window and run the following from the project folder:
+To run an audio file containing a time-expansion recording through the call detection pipeline (see below), open a terminal window and run the following from the project folder:
 
 ```bash
 source ./venv/bin/activate
-python -m spectrogram --config config.json --input /path/to/audio/file.wav --output /path/to/output/folder --analyse --mode "time-expansion"
+python -m spectrogram --config config.json --profile "te" --input /path/to/audio/file.wav --output /path/to/output/folder --analyse --mode "time-expansion"
 ```
 
 Two files will be written to the output folder:
 
-| Output    | Description                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------- |
+| Output               | Description                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
 | _file_-analysis.png  | A waveform view with detected pulse regions shaded, making it easy to visually verify the detection |
 | _file_-analysis.json | A structured file containing one entry per detected pulse, including all measured properties        |
+
+The file stem for both will be taken from the input file.
+
+
+## Running Call Detection on a Heterodyne Audio File
+
+> [!NOTE]
+> Call detection will work best with audio that's been run through the audio processing pipeline first.
+
+To run an audio file containing a heterodyne recording through the call detection pipeline (see below), open a terminal window and run the following from the project folder:
+
+```bash
+source ./venv/bin/activate
+python -m spectrogram --config config.json --profile "heterodyne" --input /path/to/audio/file.wav --output /path/to/output/folder --analyse --mode "heterodyne"
+```
+
+Two files will be written to the output folder:
+
+| Output               | Description                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| _file_-analysis.png  | A waveform view with detected pulse regions shaded, making it easy to visually verify the detection |
+| _file_-analysis.json | A structured file containing one entry per detected pulse, including time and sequence information  |
 
 The file stem for both will be taken from the input file.
 
@@ -185,13 +207,28 @@ Neighbouring “noise” windows are merged into longer regions, and only region
 
 ---
 
-# Call Analysis (Time-Expansion Bat Recordings)
+# Call Analysis
+
+The tool includes a call analysis stage designed to identify individual bat pulses in a recording and extract simple measurements describing their timing and structure.
+
+This is intended as a practical, repeatable way to turn recordings into structured data for further exploration, rather than a formal classification system.
+
+Two analysis modes are currently supported:
+
+- **Time-expansion recordings**, where both timing and frequency content can be analysed
+- **Heterodyne recordings**, where only time structure is reliable
+
+Both modes follow a similar overall approach but differ in what measurements can be meaningfully extracted.
+
+---
+
+## Time-Expansion Bat Recordings
 
 The tool includes a call analysis stage designed to identify individual bat pulses in a recording and extract simple measurements describing their timing, shape, and frequency content.
 
 This is intended as a practical, repeatable way to turn recordings into structured data for further exploration, rather than a formal classification system.
 
-## Overview
+### Overview
 
 For suitable recordings (particularly cleaned time-expansion recordings), the analysis works in three main stages:
 
@@ -204,9 +241,9 @@ For suitable recordings (particularly cleaned time-expansion recordings), the an
 
 The result is a structured description of each pulse in the recording, suitable for further analysis or visualisation.
 
-## How It Works
+### How It Works
 
-### Pulse Detection
+#### Pulse Detection
 
 The waveform is first converted into a smoothed amplitude envelope. This makes it easier to identify the overall shape of each call (a sharp attack followed by a decaying tail).
 
@@ -225,7 +262,7 @@ Each region is then refined so that it captures:
 
 The aim is to preserve the natural structure of each pulse rather than to isolate only the loudest peak.
 
-### Feeding Buzz Detection
+#### Feeding Buzz Detection
 
 Bat calls often end in a feeding buzz — a rapid sequence of closely spaced pulses as the bat approaches prey.
 
@@ -239,11 +276,11 @@ Pulses within this cluster are marked as part of the terminal buzz.
 
 Because these pulses are shorter and more densely packed than earlier calls, a second-pass peak detector is applied within the buzz region to recover pulses that may not have been fully captured by the main detector.
 
-### Pulse Measurements
+#### Pulse Measurements
 
 For each detected pulse, a set of simple measurements is calculated.
 
-#### Timing
+##### Timing
 
 - Start, peak, and end time within the recording
 - Pulse duration
@@ -251,7 +288,7 @@ For each detected pulse, a set of simple measurements is calculated.
 
 For time-expansion recordings, these are also reported in estimated real time by applying the expansion factor.
 
-#### Amplitude and Shape
+##### Amplitude and Shape
 
 - Peak amplitude
 - RMS amplitude
@@ -262,7 +299,7 @@ For time-expansion recordings, these are also reported in estimated real time by
 
 These describe the overall shape of the pulse in the time domain.
 
-#### Frequency Content
+##### Frequency Content
 
 A short-time Fourier transform (STFT) is applied within each pulse to estimate:
 
@@ -274,7 +311,7 @@ A short-time Fourier transform (STFT) is applied within each pulse to estimate:
 
 For time-expansion recordings, these frequencies are scaled back to estimated real bat frequencies using the expansion factor.
 
-### Output
+#### Output
 
 The analysis produces two outputs:
 
@@ -290,7 +327,7 @@ This JSON output is intended as a starting point for:
 - Building simple call “signatures”
 - Integrating into other workflows or reporting tools
 
-## Notes and Limitations
+### Notes and Limitations
 
 - The analysis assumes reasonably clean recordings (noise-reduced beforehand)
 - It is currently tuned for time-expansion recordings, not heterodyne
@@ -299,6 +336,115 @@ This JSON output is intended as a starting point for:
 - Very dense or noisy recordings may produce merged or missed pulses
 
 The goal is to provide a consistent and useful representation of the signal, rather than perfect segmentation.
+
+## Heterodyne Bat Recordings
+
+The tool also includes a call analysis mode for heterodyne recordings.
+
+Because heterodyne detectors convert ultrasonic calls into an audible signal tuned to a specific frequency, the resulting waveform does not preserve the original frequency structure of the call. However, the timing of pulses is still meaningful, allowing useful analysis of call sequences and behaviour.
+
+This mode therefore focuses on pulse timing and sequence structure, rather than frequency analysis.
+
+### Overview
+
+For suitable heterodyne recordings, the analysis works in four main stages:
+
+| #   | Summary                      | Description                                                                   |
+| --- | ---------------------------- | ----------------------------------------------------------------------------- |
+| 1   | Detect pulse regions         | Pulses are identified from the waveform based on amplitude over time          |
+| 2   | Group into sequences         | Pulses are grouped into passes or call sequences based on timing gaps         |
+| 3   | Identify dense terminal runs | Late-stage clusters of closely spaced pulses are detected                     |
+| 4   | Extract timing metrics       | Each pulse is measured in terms of timing and simple waveform characteristics |
+
+The result is a structured description of pulse timing and sequence behaviour within the recording.
+
+### How It Works
+
+#### Pulse Detection
+
+The waveform is converted into a smoothed amplitude envelope to highlight the shape of individual pulses.
+
+A dynamic threshold is then applied:
+
+- Based on the noise floor and signal variation
+- Short gaps within pulses are bridged
+- Very short regions are discarded
+
+Each detected region is then refined to capture:
+
+- The onset (attack) of the pulse
+- The decay tail
+
+This produces a set of pulse regions comparable to those used in time-expansion analysis.
+
+#### Sequence Grouping
+
+Detected pulses are grouped into sequences (or passes) based on gaps in time.
+
+A new sequence is started when the gap between pulses exceeds a configurable threshold.
+
+This allows recordings containing multiple passes to be separated into distinct behavioural units.
+
+#### Dense Terminal Run Detection
+
+Many bat call sequences end with a phase of increased pulse rate as the bat approaches prey.
+
+In heterodyne recordings, this appears as a progressive reduction in inter-pulse interval (IPI) rather than a precisely resolved feeding buzz.
+
+The analysis identifies these regions by:
+
+- Examining inter-pulse intervals within each sequence
+- Searching for clusters of pulses with shorter spacing than the earlier part of the sequence
+- Focusing on the later portion of each sequence
+
+Pulses within this cluster are marked as part of a terminal dense run.
+
+This is a conservative interpretation of behaviour and should not be treated as a definitive feeding buzz without additional context.
+
+#### Pulse Measurements
+
+For each detected pulse, a set of timing and simple waveform measurements is calculated.
+
+##### Timing
+
+- Start, peak, and end time
+- Pulse duration
+- Inter-pulse interval (IPI) to neighbouring pulses
+
+These form the core of heterodyne analysis.
+
+##### Amplitude and Shape
+
+- Peak amplitude
+- RMS amplitude
+- Attack duration
+- Decay duration
+
+These describe the detector output and can be useful for comparison within a dataset, but do not directly represent the original ultrasonic call shape.
+
+##### Frequency Content
+
+No reliable frequency measurements are extracted in heterodyne mode.
+
+### Output
+
+The analysis produces:
+
+| Output        | Description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| Waveform plot | Pulses are shaded, with terminal dense runs highlighted        |
+| JSON file     | One entry per pulse, including timing and sequence information |
+
+In addition to pulse-level data, sequence-level summaries are included to describe each detected pass.
+
+### Notes and Limitations
+- The analysis is based on detector output, not the original ultrasonic signal
+- Frequency content is not preserved and is not analysed
+- Pulse timing may be affected by detector response and tuning
+- Dense terminal runs are identified heuristically and represent behavioural patterns rather than definitive feeding buzzes
+- Very dense or noisy recordings may merge pulses or obscure fine timing
+
+The goal is to provide a consistent description of pulse timing and sequence structure, rather than a complete reconstruction of the original call.
 
 ---
 
@@ -313,6 +459,9 @@ The file has the following structure:
 ```json
 {
     "default": {
+
+    },
+    "te": {
 
     },
     "heterodyne": {
@@ -386,7 +535,9 @@ These parameters control the final normalisation step, which adjusts the overall
 | ------------- | ----------- | ------------------------------------------------------------------------------------------- |
 | normalisation | peak_target | Maximum amplitude to scale the signal to (ensures consistent output level without clipping) |
 
-## Call Analysis
+## Time Expansion Call Analysis
+
+Time expansion call analysis parameters are defined in the "te" configuration profile, as follows:
 
 | Section  | Property                           | Purpose                                                                                                              |
 | -------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -412,6 +563,38 @@ These parameters control the final normalisation step, which adjusts the overall
 | analysis | spectral_window                    | Window function applied during spectral analysis (e.g. “hann”)                                                       |
 | analysis | spectral_min_valid_bins            | Minimum number of valid spectral frames required to produce frequency measurements                                   |
 | analysis | json_indent                        | Indentation level used when writing the output JSON file (purely for readability)                                    |
+
+## Heterodyne Call Analysis
+
+Heterodyne call analysis parameters are defined in the "heterodyne" configuration profile, as follows:
+
+| Section  | Property                   | Purpose                                                                  |
+| -------- | -------------------------- | ------------------------------------------------------------------------ |
+| analysis | envelope_smooth_ms         | Smoothing window for amplitude envelope used in pulse detection          |
+| analysis | noise_floor_percentile     | Percentile used to estimate background noise level                       |
+| analysis | threshold_sigma            | Sensitivity of pulse detection relative to noise variation               |
+| analysis | min_threshold              | Minimum absolute threshold for pulse detection                           |
+| analysis | max_gap_ms                 | Maximum gap bridged within a pulse region                                |
+| analysis | min_region_ms              | Minimum duration required for a detected pulse                           |
+| analysis | pre_padding_ms             | Extra time added before detected pulse onset                             |
+| analysis | post_padding_ms            | Extra time added after detected pulse decay                              |
+| analysis | attack_threshold_fraction  | Fraction of peak amplitude used to locate pulse onset                    |
+| analysis | decay_threshold_fraction   | Fraction of peak amplitude used to locate pulse end                      |
+| analysis | sequence_gap_ms            | Gap required to split pulses into separate sequences (passes)            |
+| analysis | dense_ipi_ms               | Maximum inter-pulse interval for identifying dense terminal activity     |
+| analysis | dense_min_run_length       | Minimum number of pulses required to form a dense terminal run           |
+| analysis | dense_search_tail_fraction | Fraction of sequence (from the end) searched for dense terminal activity |
+| analysis | json_indent                | Indentation level used when writing JSON output                          |
+
+In heterodyne mode, parameters primarily affect **pulse timing detection and sequence structure**, rather than frequency analysis.
+
+In particular:
+
+- `dense_ipi_ms` should be tuned to the apparent pulse spacing in the detector output (often tens of milliseconds)
+- `sequence_gap_ms` controls how recordings are split into distinct passes
+- envelope and threshold parameters influence how cleanly individual pulses are separated
+
+These values may need adjustment depending on detector characteristics and recording conditions.
 
 # Authors
 
