@@ -25,6 +25,34 @@
         },
         "normalisation": {
             "peak_target": 0.95
+        }
+    },
+    "te": {
+        "spectrogram": {
+            "n_fft": 2048,
+            "hop_length": 256
+        },
+        "noise_detection": {
+            "window_ms": 50.0,
+            "hop_ms": 25.0,
+            "rms_percentile": 35.0,
+            "band_ratio_percentile": 40.0,
+            "min_region_ms": 150.0,
+            "band_low_hz": 3500.0,
+            "band_high_hz": 6500.0
+        },
+        "spectral_noise_reduction": {
+            "n_fft": 2048,
+            "hop_length": 256,
+            "reduction_strength": 1.25,
+            "floor_fraction": 0.10
+        },
+        "high_pass_filter": {
+            "cutoff_hz": 2500.0,
+            "order": 4
+        },
+        "normalisation": {
+            "peak_target": 0.95
         },
         "analysis": {
             "envelope_smooth_ms": 2.0,
@@ -77,6 +105,23 @@
         },
         "normalisation": {
             "peak_target": 0.95
+        },
+        "analysis": {
+            "envelope_smooth_ms": 3.5,
+            "noise_floor_percentile": 20.0,
+            "threshold_sigma": 2.0,
+            "min_threshold": 0.008,
+            "max_gap_ms": 10.0,
+            "min_region_ms": 6.0,
+            "pre_padding_ms": 1.5,
+            "post_padding_ms": 14.0,
+            "attack_threshold_fraction": 0.30,
+            "decay_threshold_fraction": 0.10,
+            "sequence_gap_ms": 250.0,
+            "dense_ipi_ms": 60.0,
+            "dense_min_run_length": 3,
+            "dense_search_tail_fraction": 0.35,
+            "json_indent": 2
         }
     }
 }

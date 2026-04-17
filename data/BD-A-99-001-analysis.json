@@ -1,5 +1,6 @@
 {
   "input": "BD-A-99-001.wav",
+  "analysis_mode": "time-expansion",
   "sample_rate": 11025,
   "expansion_factor": 10.0,
   "duration_s": 7.121269841269841,
