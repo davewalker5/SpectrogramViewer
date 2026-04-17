@@ -10,7 +10,7 @@ export PROJECT_ROOT=$( cd "$( dirname "$0" )/.." && pwd )
 source "$PROJECT_ROOT/venv/bin/activate"
 
 # Run the analyser
-profile="${4:-default}"
+profile="${4:-te}"
 python -m spectrogram \
     --config "$PROJECT_ROOT/config.json" \
     --profile "$profile" \

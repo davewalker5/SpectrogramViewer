@@ -13,7 +13,8 @@ from spectrogram.spectrogram import show_spectrogram
 from spectrogram.noise_detection import inspect_noise_detection
 from spectrogram.pipeline import process_audio_file
 from spectrogram.waveform import show_waveform
-from src.spectrogram.call_analysis_time_expansion import analyse_audio_file
+from spectrogram.call_analysis_time_expansion import analyse_time_expansion_file
+from spectrogram.call_analysis_heterodyne import analyse_heterodyne_file
 from spectrogram.mock_audio import make_duplicated_recording
 
 # --------------------------------------------------------------------------------
@@ -85,9 +86,9 @@ def main():
         elif args.process:
             process_audio_file(args.input, args.output)
         elif args.analyse and args.mode == TIME_EXPANSION:
-            analyse_audio_file(args.input, args.expansion_factor, args.output)
+            analyse_time_expansion_file(args.input, args.expansion_factor, args.output)
         elif args.analyse and args.mode == HETERODYNE:
-            pass
+            analyse_heterodyne_file(args.input, args.output)
         elif args.mock:
             make_duplicated_recording(args.input, args.output, args.gap, args.repetitions)
     except ConfigurationError as e:

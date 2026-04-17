@@ -8,11 +8,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from spectrogram.config_reader import get_call_analysis_property
-from spectrogram.pulse_core import PingRegion, _load_audio_mono, _build_envelope, _detect_active_regions, _mask_to_regions, \
-    _refine_regions, _merge_overlaps, _compute_time_metrics
+from spectrogram.pulse_core import (
+    PingRegion,
+    _load_audio_mono,
+    _build_envelope,
+    _detect_active_regions,
+    _mask_to_regions,
+    _refine_regions,
+    _compute_time_metrics,
+    _merge_overlaps
+)
 
 
-def analyse_audio_file(input: str, expansion_factor: float, output_folder: str):
+def analyse_time_expansion_file(input: str, expansion_factor: float, output_folder: str):
     """
     Run the full TE call-analysis pipeline for one cleaned WAV file.
 
@@ -720,6 +728,7 @@ def _write_analysis_json(
 
     payload = {
         "input": input_path.name,
+        "analysis_mode": "time-expansion",
         "sample_rate": sample_rate,
         "expansion_factor": expansion_factor,
         "duration_s": duration_s,
