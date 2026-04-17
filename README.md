@@ -90,7 +90,7 @@ source ./venv/bin/activate
 python -m spectrogram --config config.json --input /path/to/audio/file.wav --output /path/to/output/file.wav --process
 ```
 
-## Running Call Detection on an Audio File
+## Running Call Detection on a Time Expansion Audio File
 
 > [!NOTE]
 > Call detection will work best with audio that's been run through the audio processing pipeline first.
@@ -99,7 +99,7 @@ To run an audio file through the call detection pipeline (see below), open a ter
 
 ```bash
 source ./venv/bin/activate
-python -m spectrogram --config config.json --input /path/to/audio/file.wav --output /path/to/output/folder --analyse
+python -m spectrogram --config config.json --input /path/to/audio/file.wav --output /path/to/output/folder --analyse --mode "time-expansion"
 ```
 
 Two files will be written to the output folder:

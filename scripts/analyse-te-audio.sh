@@ -17,4 +17,5 @@ python -m spectrogram \
     --input "$1" \
     --output "$2" \
     --expansion-factor "$3" \
-    --analyse
+    --analyse \
+    --mode "time-expansion"
