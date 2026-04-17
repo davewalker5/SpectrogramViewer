@@ -118,7 +118,7 @@
             "attack_threshold_fraction": 0.30,
             "decay_threshold_fraction": 0.10,
             "sequence_gap_ms": 250.0,
-            "dense_ipi_ms": 18.0,
+            "dense_ipi_ms": 60.0,
             "dense_min_run_length": 3,
             "dense_search_tail_fraction": 0.35,
             "json_indent": 2

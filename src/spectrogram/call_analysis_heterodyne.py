@@ -418,24 +418,35 @@ def _plot_waveform_with_regions(
     """
     Write a simple diagnostic waveform plot with detected pulse regions shaded.
 
-    Purpose:
-    this mirrors the TE diagnostic plot but keeps the heterodyne display simpler and
-    explicitly avoids any frequency-based interpretation.
+    Enhancement:
+    terminal dense runs are highlighted with an orange background so they can be
+    visually inspected.
     """
     t = np.arange(len(samples)) / sr
     output_dir = Path(output_folder)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    out_path = output_dir / f"{Path(input_path).stem}_heterodyne_analysis.png"
+    out_path = output_dir / f"{Path(input_path).stem}_analysis.png"
+    print(f"Writing call analysis chart to {out_path}")
 
     plt.figure(figsize=(14, 4))
     plt.plot(t, samples, linewidth=0.8)
 
     for region in regions:
         if region.is_feeding_buzz:
-            plt.axvspan(region.start_time_s, region.end_time_s, alpha=0.30)
+            plt.axvspan(
+                region.start_time_s,
+                region.end_time_s,
+                color="#f6c28b",
+                alpha=0.45,
+            )
         else:
-            plt.axvspan(region.start_time_s, region.end_time_s, alpha=0.12)
+            plt.axvspan(
+                region.start_time_s,
+                region.end_time_s,
+                color="#b7d4ea",
+                alpha=0.30,
+            )
 
     plt.xlabel("Time (s)")
     plt.ylabel("Amplitude")
@@ -464,7 +475,8 @@ def _write_analysis_json(
     output_dir = Path(output_folder)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    out_path = output_dir / f"{Path(input_path).stem}_heterodyne_analysis.json"
+    out_path = output_dir / f"{Path(input_path).stem}_analysis.json"
+    print(f"Writing call analysis JSON to {out_path}")
 
     payload = {
         "input_file": str(input_path),
