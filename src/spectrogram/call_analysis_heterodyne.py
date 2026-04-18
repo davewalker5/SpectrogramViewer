@@ -475,7 +475,7 @@ def _write_analysis_json(
     output_dir = Path(output_folder)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    out_path = output_dir / f"{Path(input_path).stem}_analysis.json"
+    out_path = output_dir / f"{Path(input_path).stem}-analysis.json"
     print(f"Writing call analysis JSON to {out_path}")
 
     payload = {
